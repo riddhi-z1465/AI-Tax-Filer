@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: 'No image data provided' });
         }
 
-        // Call Gemini API (using gemini-2.5-flash model - FIXED!)
+        // Call Gemini API (trying gemini-1.5-pro model)
         const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
             {
@@ -44,6 +44,12 @@ module.exports = async (req, res) => {
                 })
             }
         );
+
+        // Check if response is OK
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API Error (${response.status}): ${errorText}`);
+        }
 
         const data = await response.json();
 
