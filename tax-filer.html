@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Tax Filer</title>
+
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #050816;
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            position: relative;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Animated mesh gradient background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(ellipse at 15% 25%, rgba(6, 182, 212, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 75%, rgba(20, 184, 166, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(14, 165, 233, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 20%, rgba(34, 211, 238, 0.08) 0%, transparent 50%);
+            animation: meshMove 20s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes meshMove {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+
+            50% {
+                opacity: 0.8;
+                transform: scale(1.05) rotate(2deg);
+            }
+        }
+
+        /* Grid pattern overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(6, 182, 212, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(6, 182, 212, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.5;
+        }
+
+        #root {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Modern glass card */
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(6, 182, 212, 0.1);
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(6, 182, 212, 0.3);
+            box-shadow:
+                0 12px 48px rgba(6, 182, 212, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Cyan glow effect */
+        .cyan-glow {
+            box-shadow:
+                0 0 20px rgba(6, 182, 212, 0.3),
+                0 0 40px rgba(6, 182, 212, 0.1);
+        }
+
+        /* Input fields */
+        .modern-input {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1.5px solid rgba(6, 182, 212, 0.2);
+            color: #ffffff;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            font-size: 0.875rem;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 400;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+        }
+
+        .modern-input:focus {
+            border-color: rgba(6, 182, 212, 0.8);
+            box-shadow:
+                0 0 0 3px rgba(6, 182, 212, 0.1),
+                0 4px 12px rgba(6, 182, 212, 0.2);
+            background: rgba(15, 23, 42, 0.95);
+            transform: translateY(-1px);
+        }
+
+        .modern-input:hover {
+            border-color: rgba(6, 182, 212, 0.4);
+        }
+
+        /* Labels */
+        .modern-label {
+            display: block;
+            font-size: 0.7rem;
+            color: #67e8f9;
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Spinner */
+        .spinner {
+            border: 3px solid rgba(6, 182, 212, 0.2);
+            border-top: 3px solid #06b6d4;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Upload area */
+        .upload-zone {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            border: 2px dashed rgba(6, 182, 212, 0.3);
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.05), rgba(20, 184, 166, 0.05));
+        }
+
+        .upload-zone:hover {
+            transform: translateY(-4px) scale(1.01);
+            border-color: #06b6d4;
+            box-shadow:
+                0 20px 60px rgba(6, 182, 212, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(20, 184, 166, 0.1));
+        }
+
+        /* Gradient button */
+        .gradient-btn {
+            background: linear-gradient(135deg, #06b6d4 0%, #14b8a6 50%, #0891b2 100%);
+            background-size: 200% 200%;
+            animation: gradientShift 3s ease infinite;
+            border: none;
+            color: white;
+            font-weight: 700;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);
+        }
+
+        @keyframes gradientShift {
+
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        .gradient-btn:hover:not(:disabled) {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow:
+                0 8px 30px rgba(6, 182, 212, 0.6),
+                0 0 60px rgba(20, 184, 166, 0.3);
+        }
+
+        .gradient-btn:active:not(:disabled) {
+            transform: translateY(0) scale(0.98);
+        }
+
+        .gradient-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .gradient-btn:hover::before {
+            left: 100%;
+        }
+
+        /* Section headers */
+        .section-header {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #67e8f9;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Result card */
+        .result-box {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(20, 184, 166, 0.1));
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 12px;
+            padding: 1.25rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .result-box:hover {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(20, 184, 166, 0.15));
+            border-color: rgba(6, 182, 212, 0.5);
+            transform: scale(1.02);
+            box-shadow: 0 8px 24px rgba(6, 182, 212, 0.2);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #06b6d4, #14b8a6);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #22d3ee, #2dd4bf);
+        }
+
+        /* Collapsible sections */
+        .collapsible-section {
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .section-toggle {
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.3s ease;
+        }
+
+        .section-toggle:hover {
+            color: #22d3ee;
+        }
+
+        /* Icon animations */
+        .icon-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        /* Shine effect */
+        .shine-effect {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .shine-effect::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            bottom: -50%;
+            left: -50%;
+            background: linear-gradient(to bottom,
+                    transparent,
+                    rgba(255, 255, 255, 0.05),
+                    transparent);
+            transform: rotateZ(45deg) translate(-100%, -100%);
+            transition: transform 0.6s;
+        }
+
+        .shine-effect:hover::after {
+            transform: rotateZ(45deg) translate(100%, 100%);
+        }
+
+        /* Status badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #6ee7b7;
+        }
+
+        .badge-error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+        }
+
+        .badge-loading {
+            background: rgba(6, 182, 212, 0.2);
+            border: 1px solid rgba(6, 182, 212, 0.4);
+            color: #67e8f9;
+        }
+
+        /* Neon text */
+        .neon-title {
+            text-shadow:
+                0 0 10px rgba(6, 182, 212, 0.8),
+                0 0 20px rgba(6, 182, 212, 0.5),
+                0 0 30px rgba(6, 182, 212, 0.3);
+            animation: neonPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes neonPulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.85;
+            }
+        }
+
+        /* Grid layout improvements */
+        .form-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        @media (min-width: 640px) {
+            .form-grid-2 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { PDFDocument, rgb } = PDFLib;
+
+        // ========== CONFIGURATION ==========
+        const GEMINI_API_KEY = "AIzaSyA7ro2CESNo6fEezhBOFkXK8mzQvpXYjc0"; // Get free: https://aistudio.google.com/app/apikey
+        const OPENAI_API_KEY = "YOUR_OPENAI_API_KEY_HERE"; // Get paid: https://platform.openai.com/api-keys
+
+        const USE_API = "gemini"; // "gemini" (FREE) or "openai" (PAID)
+
+        const PDF_FILENAME = "pdfs/kakutei_a_clean.pdf";
+        const FONT_FILENAME = "NotoSansJP-Regular.ttf";
+
+        // Coordinates for filling PDF
+        const CONFIG = {
+            BOX_WIDTH: 14, FONT_SIZE_NUM: 15, FONT_SIZE_TEXT: 10,
+            X_GREEN: 294, Y_INCOME_START: 223, GAP_GREEN: 224,
+            X_RED: 294, Y_DEDUCT_START: 509, GAP_RED_SMALL: 40, GAP_RED_QUAKE: 60,
+            GAP_RED_SPOUSE: 142, GAP_RED_DEP: 202, GAP_RED_BASIC: 228, GAP_RED_TOTAL: 264,
+            X_BLUE: 552, Y_TAX_START: 223.5, GAP_BLUE_TAX_CALC: 183.5,
+            GAP_BLUE_WITHHOLD: 365, GAP_BLUE_PAY: 405, GAP_BLUE_REFUND: 425,
+            POS_FURIGANA: { x: 343, y: 101, spacing: 4 },
+            POS_NAME: { x: 347, y: 129, spacing: 4 },
+            POS_ADDRESS: { x: 108, y: 103, limit: 20, gap: 12 },
+            POS_DOB: { startX: 472, spacing: 34, y: 179 },
+            POS_MYNUM: { x: 450, y: 40 },
+        };
+
+        const App = () => {
+            const [files, setFiles] = useState({ pdf: null, font: null, loaded: false });
+            const [status, setStatus] = useState({ loading: false, msg: '', error: null });
+            const [previewUrl, setPreviewUrl] = useState(null);
+            const [formData, setFormData] = useState({
+                // Personal Information
+                furigana: "",
+                name: "",
+                dob_year: "",
+                dob_month: "",
+                dob_day: "",
+                address: "",
+                my_number: "",
+
+                // Income Information
+                payment_amount: 0,
+                salary_after_deduction: 0,
+                total_deductions: 0,
+                withholding_tax: 0,
+
+                // Deduction Information
+                social_insurance: 0,
+                life_insurance_old: 0,
+                life_insurance_new: 0,
+                earthquake_insurance: 0,
+                spouse_deduction: 0,
+                dependent_deduction: 0,
+                basic_deduction: 480000,
+
+                // Employer Information
+                company_name: "",
+                company_address: "",
+                company_number: "",
+
+                // Combined life insurance (for backward compatibility)
+                life_insurance: 0
+            });
+
+            // Load PDF and Font
+            useEffect(() => {
+                const loadAssets = async () => {
+                    if (!PDF_FILENAME || !FONT_FILENAME) {
+                        setFiles({ pdf: null, font: null, loaded: true });
+                        setStatus({ loading: false, msg: "Extraction-only mode", error: null });
+                        return;
+                    }
+                    try {
+                        setStatus({ loading: true, msg: "Loading templates..." });
+                        const [pdfRes, fontRes] = await Promise.all([fetch(PDF_FILENAME), fetch(FONT_FILENAME)]);
+                        if (!pdfRes.ok || !fontRes.ok) throw new Error("Files not found");
+                        setFiles({ pdf: await pdfRes.blob(), font: await fontRes.blob(), loaded: true });
+                        setStatus({ loading: false, msg: "Ready!", error: null });
+                    } catch (e) {
+                        setStatus({ loading: false, error: `Setup: ${e.message}` });
+                    }
+                };
+                loadAssets();
+            }, []);
+
+            // AI Extraction
+            const handleImageUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const apiKey = USE_API === "openai" ? OPENAI_API_KEY : GEMINI_API_KEY;
+                if (!apiKey || apiKey.includes("YOUR_")) {
+                    setStatus({ error: `Please set ${USE_API.toUpperCase()}_API_KEY`, loading: false });
+                    return;
+                }
+
+                setStatus({ loading: true, msg: `Analyzing with ${USE_API}...` });
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onloadend = async () => {
+                    try {
+                        let parsed;
+
+                        if (USE_API === "openai") {
+                            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` },
+                                body: JSON.stringify({
+                                    model: "gpt-4o-mini",
+                                    messages: [{
+                                        role: "user",
+                                        content: [{
+                                            type: "text",
+                                            text: "Extract ALL fields from this Japanese tax withholding slip (源泉徴収票) to JSON format. Include: furigana, name, dob_year, dob_month, dob_day, address, my_number, payment_amount (支払金額), salary_after_deduction (給与所得控除後の金額), total_deductions (所得控除の額の合計額), withholding_tax (源泉徴収税額), social_insurance (社会保険料等の金額), life_insurance_old (生命保険料控除額 old), life_insurance_new (生命保険料控除額 new), earthquake_insurance (地震保険料控除額), spouse_deduction (配偶者控除), dependent_deduction (扶養控除), company_name (氏名又は名称), company_address (所在地), company_number (個人番号又は法人番号). Use 0 for missing numbers and empty string for missing text."
+                                        }, { type: "image_url", image_url: { url: reader.result } }]
+                                    }],
+                                    max_tokens: 1000
+                                })
+                            });
+                            const data = await response.json();
+                            if (data.error) throw new Error(data.error.message);
+                            parsed = JSON.parse(data.choices[0].message.content.replace(/```json|```/g, '').trim());
+                        } else {
+                            const base64Data = reader.result.split(',')[1];
+                            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    contents: [{
+                                        parts: [
+                                            { text: "Extract ALL fields from this Japanese tax withholding slip (源泉徴収票) to JSON format. Include: furigana, name, dob_year, dob_month, dob_day, address, my_number, payment_amount (支払金額), salary_after_deduction (給与所得控除後の金額), total_deductions (所得控除の額の合計額), withholding_tax (源泉徴収税額), social_insurance (社会保険料等の金額), life_insurance_old (生命保険料控除額 old), life_insurance_new (生命保険料控除額 new), earthquake_insurance (地震保険料控除額), spouse_deduction (配偶者控除), dependent_deduction (扶養控除), company_name (氏名又は名称), company_address (所在地), company_number (個人番号又は法人番号). Use 0 for missing numbers and empty string for missing text." },
+                                            { inlineData: { mimeType: file.type, data: base64Data } }
+                                        ]
+                                    }]
+                                })
+                            });
+                            const data = await response.json();
+                            if (data.error) throw new Error(data.error.message);
+                            parsed = JSON.parse(data.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim());
+                        }
+
+                        setFormData(prev => ({ ...prev, ...parsed, basic_deduction: 480000 }));
+                        setStatus({ loading: false, msg: "Success!", error: null });
+                    } catch (err) {
+                        setStatus({ loading: false, error: err.message });
+                    }
+                };
+            };
+
+            // Calculations
+            const calculateResults = () => {
+                const totalLifeIns = Number(formData.life_insurance_old) + Number(formData.life_insurance_new);
+                const totalDed = Number(formData.social_insurance) + totalLifeIns +
+                    Number(formData.earthquake_insurance) + Number(formData.spouse_deduction) +
+                    Number(formData.dependent_deduction) + Number(formData.basic_deduction);
+                let taxable = Math.max(0, Number(formData.salary_after_deduction) - totalDed);
+                taxable = Math.floor(taxable / 1000) * 1000;
+                let baseTax = 0;
+                if (taxable <= 1950000) baseTax = taxable * 0.05;
+                else if (taxable <= 3300000) baseTax = (taxable * 0.10) - 97500;
+                else if (taxable <= 6950000) baseTax = (taxable * 0.20) - 427500;
+                else baseTax = (taxable * 0.23) - 636000;
+                let totalTax = Math.floor(baseTax * 1.021);
+                return { totalDeductions: totalDed, taxableIncome: taxable, totalTax, balance: totalTax - Number(formData.withholding_tax) };
+            };
+
+            const results = calculateResults();
+
+            // Generate PDF
+            const generatePDF = async () => {
+                if (!files.pdf || !files.font) return;
+                setStatus({ loading: true, msg: "Generating PDF..." });
+                try {
+                    const pdfDoc = await PDFDocument.load(await files.pdf.arrayBuffer(), { ignoreEncryption: true });
+                    pdfDoc.registerFontkit(window.fontkit);
+                    const customFont = await pdfDoc.embedFont(await files.font.arrayBuffer());
+                    const page = pdfDoc.getPages()[0];
+                    const { height } = page.getSize();
+
+                    const drawBoxes = (val, endX, yTopDown) => {
+                        if (!val && val !== 0) return;
+                        const str = Math.floor(val).toString();
+                        for (let i = 0; i < str.length; i++) {
+                            page.drawText(str[str.length - 1 - i], {
+                                x: endX - (i * CONFIG.BOX_WIDTH),
+                                y: height - yTopDown,
+                                size: CONFIG.FONT_SIZE_NUM,
+                                color: rgb(0, 0, 0)
+                            });
+                        }
+                    };
+
+                    const drawKanji = (text, x, yTopDown, size = 10, spacing = 0) => {
+                        if (!text) return;
+                        if (spacing > 0) {
+                            for (let i = 0; i < text.length; i++) {
+                                page.drawText(text[i], {
+                                    x: x + (i * (size + spacing)),
+                                    y: height - yTopDown,
+                                    size, font: customFont, color: rgb(0, 0, 0)
+                                });
+                            }
+                        } else {
+                            page.drawText(String(text), { x, y: height - yTopDown, size, font: customFont, color: rgb(0, 0, 0) });
+                        }
+                    };
+
+                    // Fill all fields
+                    drawKanji(formData.furigana, CONFIG.POS_FURIGANA.x, CONFIG.POS_FURIGANA.y, 10, CONFIG.POS_FURIGANA.spacing);
+                    drawKanji(formData.name, CONFIG.POS_NAME.x, CONFIG.POS_NAME.y, 14, CONFIG.POS_NAME.spacing);
+                    drawKanji(formData.address.substring(0, 20), CONFIG.POS_ADDRESS.x, CONFIG.POS_ADDRESS.y, 10);
+                    drawKanji(formData.dob_year, CONFIG.POS_DOB.startX, CONFIG.POS_DOB.y, 12);
+                    drawKanji(formData.dob_month, CONFIG.POS_DOB.startX + CONFIG.POS_DOB.spacing, CONFIG.POS_DOB.y, 12);
+                    drawKanji(formData.dob_day, CONFIG.POS_DOB.startX + (CONFIG.POS_DOB.spacing * 2.05), CONFIG.POS_DOB.y, 12);
+                    drawBoxes(formData.my_number, CONFIG.POS_MYNUM.x, CONFIG.POS_MYNUM.y);
+                    drawBoxes(formData.payment_amount, CONFIG.X_GREEN, CONFIG.Y_INCOME_START);
+                    drawBoxes(formData.salary_after_deduction, CONFIG.X_GREEN, CONFIG.Y_INCOME_START + CONFIG.GAP_GREEN);
+                    drawBoxes(formData.social_insurance, CONFIG.X_RED, CONFIG.Y_DEDUCT_START);
+                    drawBoxes(formData.life_insurance, CONFIG.X_RED, CONFIG.Y_DEDUCT_START + CONFIG.GAP_RED_SMALL);
+                    drawBoxes(formData.earthquake_insurance, CONFIG.X_RED, CONFIG.Y_DEDUCT_START + CONFIG.GAP_RED_QUAKE);
+                    drawBoxes(formData.spouse_deduction, CONFIG.X_RED, CONFIG.Y_DEDUCT_START + CONFIG.GAP_RED_SPOUSE);
+                    drawBoxes(formData.dependent_deduction, CONFIG.X_RED, CONFIG.Y_DEDUCT_START + CONFIG.GAP_RED_DEP);
+                    drawBoxes(formData.basic_deduction, CONFIG.X_RED, CONFIG.Y_DEDUCT_START + CONFIG.GAP_RED_BASIC);
+                    drawBoxes(results.totalDeductions, CONFIG.X_RED, CONFIG.Y_DEDUCT_START + CONFIG.GAP_RED_TOTAL);
+                    drawBoxes(results.taxableIncome, CONFIG.X_BLUE, CONFIG.Y_TAX_START);
+                    drawBoxes(results.totalTax, CONFIG.X_BLUE, CONFIG.Y_TAX_START + CONFIG.GAP_BLUE_TAX_CALC);
+                    drawBoxes(formData.withholding_tax, CONFIG.X_BLUE, CONFIG.Y_TAX_START + CONFIG.GAP_BLUE_WITHHOLD);
+                    if (results.balance > 0) {
+                        drawBoxes(results.balance, CONFIG.X_BLUE, CONFIG.Y_TAX_START + CONFIG.GAP_BLUE_PAY);
+                    } else {
+                        drawBoxes(Math.abs(results.balance), CONFIG.X_BLUE, CONFIG.Y_TAX_START + CONFIG.GAP_BLUE_REFUND);
+                    }
+
+                    const pdfBytes = await pdfDoc.save();
+                    setPreviewUrl(URL.createObjectURL(new Blob([pdfBytes], { type: 'application/pdf' })));
+                    setStatus({ loading: false, msg: "Done!", error: null });
+                } catch (e) {
+                    setStatus({ loading: false, error: e.message });
+                }
+            };
+
+            return (
+                <div className="min-h-screen p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto">
+                    <div className="lg:col-span-4 space-y-5 max-h-screen overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+                        {/* Header Card */}
+                        <div className="glass-card shine-effect p-6 rounded-2xl shadow-2xl cyan-glow">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h1 className="text-3xl font-black mb-1 flex items-center gap-2 neon-title" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                                        <i className="fa-solid fa-robot icon-float"></i> AI Tax Filer
+                                    </h1>
+                                    <p className="text-xs opacity-60 flex items-center gap-2 ml-1">
+                                        <span className="inline-block w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse"></span>
+                                        {USE_API === "openai" ? "OpenAI GPT-4" : "Google Gemini"}
+                                    </p>
+                                </div>
+                                <div className="text-4xl opacity-20 text-cyan-400">
+                                    <i className="fa-solid fa-file-invoice"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Upload Section */}
+                        <div className="glass-card shine-effect p-6 rounded-2xl">
+                            <h3 className="font-bold mb-4 text-lg flex items-center gap-2">
+                                <i className="fa-solid fa-cloud-arrow-up text-cyan-400"></i>
+                                Upload Tax Document
+                            </h3>
+                            <div className="relative group">
+                                <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                <div className="upload-zone border-2 border-dashed border-cyan-400/30 rounded-xl p-10 text-center bg-gradient-to-br from-cyan-500/5 to-pink-500/5 transition-all">
+                                    <i className="fa-regular fa-image text-5xl mb-3 text-cyan-300 opacity-60"></i>
+                                    <p className="text-sm font-semibold mb-1">Drop your file here</p>
+                                    <p className="text-xs opacity-50">or click to browse</p>
+                                </div>
+                            </div>
+                            {status.loading && (
+                                <div className="mt-3 flex items-center gap-2 text-xs bg-cyan-500/10 p-3 rounded-lg border border-cyan-400/30">
+                                    <div className="spinner"></div>
+                                    <span className="font-medium">{status.msg}</span>
+                                </div>
+                            )}
+                            {status.error && (
+                                <div className="mt-3 text-xs bg-red-500/20 text-red-200 p-3 rounded-lg border border-red-400/30 flex items-start gap-2">
+                                    <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
+                                    <span>{status.error}</span>
+                                </div>
+                            )}
+                            {status.msg && !status.loading && !status.error && (
+                                <div className="mt-3 text-xs bg-emerald-500/20 text-emerald-200 p-3 rounded-lg border border-emerald-400/30 flex items-center gap-2">
+                                    <i className="fa-solid fa-circle-check"></i>
+                                    <span className="font-medium">{status.msg}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Personal Information Section */}
+                        <div className="glass-card shine-effect p-6 rounded-2xl">
+                            <h3 className="font-bold mb-4 text-lg flex items-center gap-2">
+                                <i className="fa-solid fa-user text-cyan-400"></i>
+                                Personal Information
+                            </h3>
+                            <div className="grid grid-cols-1 gap-4 text-sm">
+                                <div>
+                                    <label className="modern-label">📝 Furigana (フリガナ)</label>
+                                    <input type="text" value={formData.furigana} onChange={e => setFormData({ ...formData, furigana: e.target.value })} className="modern-input" />
+                                </div>
+                                <div>
+                                    <label className="modern-label">👤 Name (氏名)</label>
+                                    <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="modern-input" />
+                                </div>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div>
+                                        <label className="modern-label">📅 Year</label>
+                                        <input type="text" value={formData.dob_year} onChange={e => setFormData({ ...formData, dob_year: e.target.value })} className="modern-input" placeholder="YYYY" />
+                                    </div>
+                                    <div>
+                                        <label className="modern-label">📅 Month</label>
+                                        <input type="text" value={formData.dob_month} onChange={e => setFormData({ ...formData, dob_month: e.target.value })} className="modern-input" placeholder="MM" />
+                                    </div>
+                                    <div>
+                                        <label className="modern-label">📅 Day</label>
+                                        <input type="text" value={formData.dob_day} onChange={e => setFormData({ ...formData, dob_day: e.target.value })} className="modern-input" placeholder="DD" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="modern-label">🏠 Address (住所)</label>
+                                    <input type="text" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} className="modern-input" />
+                                </div>
+                                <div>
+                                    <label className="modern-label">🆔 My Number (個人番号)</label>
+                                    <input type="text" value={formData.my_number} onChange={e => setFormData({ ...formData, my_number: e.target.value })} className="modern-input" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Employer Information Section */}
+                        <div className="glass-card shine-effect p-6 rounded-2xl">
+                            <h3 className="font-bold mb-4 text-lg flex items-center gap-2">
+                                <i className="fa-solid fa-building text-cyan-400"></i>
+                                Employer Information
+                            </h3>
+                            <div className="grid grid-cols-1 gap-4 text-sm">
+                                <div>
+                                    <label className="modern-label">🏢 Company Name (氏名又は名称)</label>
+                                    <input type="text" value={formData.company_name} onChange={e => setFormData({ ...formData, company_name: e.target.value })} className="modern-input" />
+                                </div>
+                                <div>
+                                    <label className="modern-label">📍 Company Address (所在地)</label>
+                                    <input type="text" value={formData.company_address} onChange={e => setFormData({ ...formData, company_address: e.target.value })} className="modern-input" />
+                                </div>
+                                <div>
+                                    <label className="modern-label">🔢 Company Number (法人番号)</label>
+                                    <input type="text" value={formData.company_number} onChange={e => setFormData({ ...formData, company_number: e.target.value })} className="modern-input" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Income Information Section */}
+                        <div className="glass-card shine-effect p-6 rounded-2xl">
+                            <h3 className="font-bold mb-4 text-lg flex items-center gap-2">
+                                <i className="fa-solid fa-yen-sign text-cyan-400"></i>
+                                Income Details
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div className="col-span-2">
+                                    <label className="modern-label">💰 Payment Amount (支払金額)</label>
+                                    <input type="number" value={formData.payment_amount} onChange={e => setFormData({ ...formData, payment_amount: e.target.value })} className="modern-input" />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="modern-label">📊 After Deduction (給与所得控除後)</label>
+                                    <input type="number" value={formData.salary_after_deduction} onChange={e => setFormData({ ...formData, salary_after_deduction: e.target.value })} className="modern-input" />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="modern-label">💵 Withholding Tax (源泉徴収税額)</label>
+                                    <input type="number" value={formData.withholding_tax} onChange={e => setFormData({ ...formData, withholding_tax: e.target.value })} className="modern-input" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Deduction Information Section */}
+                        <div className="glass-card shine-effect p-6 rounded-2xl">
+                            <h3 className="font-bold mb-4 text-lg flex items-center gap-2">
+                                <i className="fa-solid fa-receipt text-cyan-400"></i>
+                                Deduction Details
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div className="col-span-2">
+                                    <label className="modern-label">🏥 Social Insurance (社会保険料)</label>
+                                    <input type="number" value={formData.social_insurance} onChange={e => setFormData({ ...formData, social_insurance: e.target.value })} className="modern-input" />
+                                </div>
+                                <div>
+                                    <label className="modern-label">🛡️ Life Ins (Old)</label>
+                                    <input type="number" value={formData.life_insurance_old} onChange={e => setFormData({ ...formData, life_insurance_old: e.target.value })} className="modern-input" />
+                                </div>
+                                <div>
+                                    <label className="modern-label">🛡️ Life Ins (New)</label>
+                                    <input type="number" value={formData.life_insurance_new} onChange={e => setFormData({ ...formData, life_insurance_new: e.target.value })} className="modern-input" />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="modern-label">🏚️ Earthquake Insurance (地震保険)</label>
+                                    <input type="number" value={formData.earthquake_insurance} onChange={e => setFormData({ ...formData, earthquake_insurance: e.target.value })} className="modern-input" />
+                                </div>
+                                <div>
+                                    <label className="modern-label">💑 Spouse Deduction (配偶者控除)</label>
+                                    <input type="number" value={formData.spouse_deduction} onChange={e => setFormData({ ...formData, spouse_deduction: e.target.value })} className="modern-input" />
+                                </div>
+                                <div>
+                                    <label className="modern-label">👨‍👩‍👧 Dependent Deduction (扶養控除)</label>
+                                    <input type="number" value={formData.dependent_deduction} onChange={e => setFormData({ ...formData, dependent_deduction: e.target.value })} className="modern-input" />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="modern-label">⭐ Basic Deduction (基礎控除)</label>
+                                    <input type="number" value={formData.basic_deduction} onChange={e => setFormData({ ...formData, basic_deduction: e.target.value })} className="modern-input" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Tax Calculation Section */}
+                        <div className="glass-card shine-effect p-6 rounded-2xl">
+                            <h3 className="font-bold mb-4 text-lg flex items-center gap-2">
+                                <i className="fa-solid fa-calculator text-cyan-400"></i>
+                                Tax Calculation
+                            </h3> {/* Results Summary */}
+                            <div className="mt-6 result-box p-5 rounded-2xl space-y-3">
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="opacity-80">Taxable Income</span>
+                                    <span className="font-bold text-lg">¥{results.taxableIncome.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="opacity-80">Tax Due</span>
+                                    <span className="font-bold text-lg">¥{results.totalTax.toLocaleString()}</span>
+                                </div>
+                                <div className="h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent"></div>
+                                <div className={`flex justify-between items-center text-lg font-black ${results.balance < 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                    <span className="flex items-center gap-2">
+                                        {results.balance < 0 ? "💰 REFUND" : "💸 PAYMENT"}
+                                    </span>
+                                    <span className="text-2xl">¥{Math.abs(results.balance).toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Generate Button */}
+                        <button
+                            onClick={generatePDF}
+                            disabled={status.loading || !files.pdf}
+                            className="w-full py-5 gradient-btn text-white font-black rounded-2xl shadow-2xl transition-all transform disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none text-lg"
+                            style={{ fontFamily: 'Outfit, sans-serif' }}
+                        >
+                            {status.loading ? (
+                                <span className="flex items-center justify-center gap-3">
+                                    <div className="spinner"></div> Generating...
+                                </span>
+                            ) : (
+                                <span className="flex items-center justify-center gap-3">
+                                    <i className="fa-solid fa-file-pdf text-xl"></i>
+                                    {files.pdf ? 'Generate PDF Document' : 'PDF Template Required'}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+
+                    {/* PDF Preview Panel */}
+                    <div className="lg:col-span-8 glass-card rounded-3xl overflow-hidden shadow-2xl h-[90vh] flex flex-col">
+                        <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 p-5 flex justify-between items-center border-b border-cyan-400/20">
+                            <div className="flex items-center gap-3">
+                                <i className="fa-solid fa-file-lines text-cyan-400"></i>
+                                <span className="font-mono text-sm font-bold tracking-wider">PDF PREVIEW</span>
+                            </div>
+                            {previewUrl && (
+                                <a
+                                    href={previewUrl}
+                                    download="Tax_Return.pdf"
+                                    className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 px-6 py-3 rounded-full text-sm font-bold transition-all transform hover:scale-105 active:scale-95 shadow-lg flex items-center gap-2"
+                                >
+                                    <i className="fa-solid fa-download"></i>
+                                    Download PDF
+                                </a>
+                            )}
+                        </div>
+                        <div className="flex-1 p-8 flex items-center justify-center pdf-preview-container">
+                            {previewUrl ? (
+                                <iframe
+                                    src={previewUrl}
+                                    className="w-full h-full rounded-2xl shadow-2xl border-2 border-cyan-400/20"
+                                    style={{ boxShadow: '0 0 60px rgba(138, 43, 226, 0.3)' }}
+                                ></iframe>
+                            ) : (
+                                <div className="text-center opacity-40">
+                                    <i className="fa-regular fa-file-pdf text-9xl mb-6 text-cyan-300 icon-float"></i>
+                                    <p className="text-2xl font-bold mb-2">No Preview Available</p>
+                                    <p className="text-sm opacity-70">Upload a document and generate to see preview</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+
+</html>
